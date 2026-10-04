@@ -5,7 +5,7 @@ ZM.page('system', {
   async render() {
     const [s, i] = await Promise.all([ZM.api('system_status'), ZM.api('sysinfo')]);
     const skins = [['auto', 'Claude · как в системе'], ['light', 'Claude · светлый'], ['dark', 'Claude · тёмный'], ['ultrakill', 'ULTRAKILL']];
-    return `<div class="zm-cards c2">
+    return `${selfBanner()}<div class="zm-cards c2">
       ${card('Компьютер', `<div class="kv">
         <span>Система</span><span>${esc(i.os)} ${esc(i.build)}</span><span>Имя</span><span>${esc(i.host)}</span>
         <span>Время</span><span>${esc(s.time)}</span><span>Работает</span><span>${dur(i.uptime)}</span>
@@ -23,6 +23,8 @@ ZM.page('system', {
         ${field('Источник загрузок', sel('mir', s.mirrors.map(m => [m.ID, m.Name]), s.mirror))}
         <div class="zm-actions">${btn('mirror', 'Применить')}</div>`)}
     </div>
+    ${card('Zapret Manager', `<div class="zm-row">Версия <b>${esc(i.version)}</b>${ZM.self ? (ZM.self.newer ? ' ' + badge('warn', 'доступна ' + ZM.self.latest) : ZM.self.latest ? ' ' + badge('ok', 'последняя') : '') : ''}</div>
+      <div class="zm-actions">${ZM.self && ZM.self.newer ? `<button class="btn pri" data-selfupd="1">Обновить до ${esc(ZM.self.latest)}</button>` : ''}${btn('selfchk', 'Проверить обновления')}</div>`)}
     ${card('Версии компонентов', `<div id="vers">${ZM.versCache ? versTable(ZM.versCache) : '<p class="hint">Нажмите «Проверить», чтобы сравнить с последними релизами.</p>'}</div>`, btn('vers', 'Проверить', 'sm'))}
     ${card('Журналы', `<div class="grid-btns">${[['manager', 'Zapret Manager'], ['winws', 'winws'], ['winws2', 'winws2'], ['mihomo', 'Mihomo'], ['byedpi', 'ByeDPI'], ['tg-go', 'TG (Go)'], ['tg-rs', 'TG (Rust)']].map(([n, t]) => btn('log', t, '', { n })).join('')}</div>`)}
     ${card('Удаление', `<p>Удалит Zapret Manager и все компоненты, вернёт DNS адаптеров, hosts-блоки останутся, правила брандмауэра и системный прокси будут убраны.</p>
@@ -38,6 +40,7 @@ ZM.page('system', {
       rd.onload = async () => { if (await ZM.call('skin_upload', { skin: 'ultrakill', slot: b.dataset.slot, data: rd.result }, { ok: 'Картинка загружена', reload: false })) { await UK.loadArt(); ZM.refresh(); } };
       rd.readAsDataURL(f); }; i.click(); },
     async unart(b) { if (await ZM.call('skin_remove', { skin: 'ultrakill', slot: b.dataset.slot }, { ok: 'Убрано', reload: false })) { await UK.loadArt(); ZM.refresh(); } },
+    async selfchk(b) { b.disabled = true; try { ZM.self = await ZM.api('self_check', { force: true }); ZM.toast(ZM.self.newer ? 'Доступна версия ' + ZM.self.latest : 'У вас последняя версия', 'ok'); ZM.refresh(); ZM.pollDash(); } catch (e) { ZM.toast(e.message, 'err'); } b.disabled = false; },
     async conn() {
       const o = document.getElementById('connRes'); o.innerHTML = '<span class="spin"></span>';
       const c = await ZM.api('connectivity').catch(() => null);

@@ -326,6 +326,10 @@ func register() {
 		return M{"output": out}, err
 	})
 	reg("versions", func(ctx context.Context, a Args) (any, error) { return Versions(a.B("refresh")), nil })
+	reg("self_check", func(ctx context.Context, a Args) (any, error) { return SelfCheck(a.B("force")), nil })
+	reg("self_update", func(ctx context.Context, a Args) (any, error) {
+		return job("self_update", "Обновление Zapret Manager", SelfUpdate)
+	})
 	reg("uninstall_all", func(ctx context.Context, a Args) (any, error) {
 		return job("uninstall_all", "Удаление Zapret Manager", UninstallAll)
 	})

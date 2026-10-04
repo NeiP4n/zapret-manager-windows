@@ -58,6 +58,7 @@ func FullReinstall(j *app.Job) error {
 }
 
 type VerItem struct {
+	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Installed string `json:"installed"`
 	Latest    string `json:"latest"`
@@ -78,17 +79,17 @@ func Versions(refresh bool) M {
 		s := app.S()
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()
-		type src struct{ name, inst, repo string }
+		type src struct{ id, name, inst, repo string }
 		bt := byetube.Status()
 		rt := routing.Status()
 		list := []src{
-			{"Zapret (winws)", s.ZapretVersion, "bol-van/zapret"},
-			{"Zapret2 (winws2)", s.Zapret2Version, "bol-van/zapret2"},
-			{"Mihomo", rt.Config.Version, "MetaCubeX/mihomo"},
-			{"ByeDPI", bt.Config.Version, "hufrea/byedpi"},
+			{"zapret", "Zapret (winws)", s.ZapretVersion, "bol-van/zapret"},
+			{"zapret2", "Zapret2 (winws2)", s.Zapret2Version, "bol-van/zapret2"},
+			{"mihomo", "Mihomo", rt.Config.Version, "MetaCubeX/mihomo"},
+			{"byedpi", "ByeDPI", bt.Config.Version, "hufrea/byedpi"},
 		}
 		for _, t := range tg.Status() {
-			list = append(list, src{t.Title, t.Config.Version, map[string]string{"go": "d0mhate/-tg-ws-proxy-Manager-go", "rs": "valnesfjord/tg-ws-proxy-rs"}[t.ID]})
+			list = append(list, src{"tg-" + t.ID, t.Title, t.Config.Version, map[string]string{"go": "d0mhate/-tg-ws-proxy-Manager-go", "rs": "valnesfjord/tg-ws-proxy-rs"}[t.ID]})
 		}
 		var out []VerItem
 		var wg sync.WaitGroup
@@ -98,7 +99,7 @@ func Versions(refresh bool) M {
 			go func(x src) {
 				defer wg.Done()
 				lt := app.LatestTag(ctx, x.repo)
-				it := VerItem{Name: x.name, Installed: strings.TrimPrefix(x.inst, "v"), Latest: strings.TrimPrefix(lt, "v")}
+				it := VerItem{ID: x.id, Name: x.name, Installed: strings.TrimPrefix(x.inst, "v"), Latest: strings.TrimPrefix(lt, "v")}
 				it.Newer = it.Installed != "" && it.Latest != "" && it.Installed != it.Latest
 				mu.Lock()
 				out = append(out, it)
@@ -115,7 +116,8 @@ func Versions(refresh bool) M {
 				out[k], out[k-1] = out[k-1], out[k]
 			}
 		}
-		out = append([]VerItem{{Name: "Zapret Manager", Installed: app.Version, Latest: app.Version}}, out...)
+		si := SelfCheck(true)
+		out = append([]VerItem{{ID: "self", Name: "Zapret Manager", Installed: app.Version, Latest: si.Latest, Newer: si.Newer}}, out...)
 		verCache, verAt = out, time.Now()
 	}
 	return M{"items": verCache, "ts": verAt.Unix()}
@@ -143,6 +145,7 @@ func UninstallAll(j *app.Job) error {
 	if !app.Dev {
 		// delete files after the service process exits
 		cmd := exec.Command("cmd.exe", "/c", "ping -n 6 127.0.0.1 >nul & sc.exe delete "+app.ServiceName+" & rmdir /s /q \""+app.Base+"\"")
+		osx.Detach(cmd)
 		_ = cmd.Start()
 		go func() {
 			time.Sleep(2 * time.Second)

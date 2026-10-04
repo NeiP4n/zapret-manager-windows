@@ -81,7 +81,7 @@ func main() {
 	}
 }
 
-const usage = `Zapret Manager for Windows ` + app.Version + `
+var usage = `Zapret Manager for Windows ` + app.Version + `
   (без аргументов)  установить/обновить и открыть панель
   open              открыть веб-панель
   menu              консольное меню

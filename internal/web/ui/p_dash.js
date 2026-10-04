@@ -47,7 +47,7 @@ ZM.page('dash', {
       t('system', 'QUIC в брандмауэре', d.quic_blocked ? 'warn' : 'off', d.quic_blocked ? 'UDP 443 заблокирован' : 'не блокируется'),
     ].join('');
 
-    return `${warn}${styleMeter(d)}
+    return `${selfBanner()}${warn}${styleMeter(d)}
     <div class="zm-cards c2">
       ${card('Zapret', zr, stBadge(z.installed, z.running))}
       ${card('Компьютер', `
@@ -86,7 +86,7 @@ ZM.page('dash', {
 
 function versTable(items) {
   return `<div class="scroll"><table class="zm"><tr><th>Компонент</th><th>Установлен</th><th>Последний</th><th></th></tr>${items.map(i =>
-    `<tr><td>${esc(i.name)}</td><td>${esc(i.installed || '—')}</td><td>${esc(i.latest || '—')}</td><td>${i.newer ? badge('warn', 'есть обновление') : i.installed ? badge('ok', 'актуально') : ''}</td></tr>`).join('')}</table></div>`;
+    `<tr><td>${esc(i.name)}</td><td>${esc(i.installed || '—')}</td><td>${esc(i.latest || '—')}</td><td>${i.newer ? `<button class="btn sm pri" data-upd="${esc(i.id)}">Обновить</button>` : i.installed ? badge('ok', 'актуально') : ''}</td></tr>`).join('')}</table></div>`;
 }
 
 // STYLE meter for the ULTRAKILL skin: the more of the arsenal is running, the higher the rank.

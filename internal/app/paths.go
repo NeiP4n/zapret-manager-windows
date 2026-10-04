@@ -8,8 +8,10 @@ import (
 	"runtime"
 )
 
+// Version is overridable at build time: -ldflags "-X github.com/zapretmanager/zmwin/internal/app.Version=1.2.3"
+var Version = "1.1.0"
+
 const (
-	Version     = "1.0.0"
 	ServiceName = "ZapretManager"
 	DisplayName = "Zapret Manager"
 	DefaultPort = 17580

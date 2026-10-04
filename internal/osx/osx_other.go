@@ -61,3 +61,5 @@ func UnloadWinDivert()                {}
 
 func ServiceDisable(name string) error { return nil }
 func KillPID(pid int)                  {}
+
+func Detach(cmd *exec.Cmd) {}

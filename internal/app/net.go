@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ZapretManager/" + Version
+var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ZapretManager/" + Version
 
 var (
 	GHRaw  = "https://raw.githubusercontent.com"

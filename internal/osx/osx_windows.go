@@ -294,3 +294,9 @@ func ServiceDisable(name string) error {
 
 // KillPID terminates a foreign process tree.
 func KillPID(pid int) { killTree(pid) }
+
+// Detach makes a helper process independent of the service (survives its stop).
+func Detach(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true,
+		CreationFlags: windows.CREATE_NO_WINDOW | windows.CREATE_NEW_PROCESS_GROUP | 0x01000000 /* CREATE_BREAKAWAY_FROM_JOB */}
+}

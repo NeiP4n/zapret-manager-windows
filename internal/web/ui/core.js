@@ -156,7 +156,10 @@ const ZM = {
       this.nav();
       const jobs = (this.dash.jobs || []).map(j => `<span class="badge warn"><span class="spin"></span>${esc(j.label)}</span>`).join('');
       document.getElementById('topJobs').innerHTML = jobs;
-      document.getElementById('ver').textContent = 'v' + this.dash.sys.version + (this.dash.sys.dev ? ' · dev' : '');
+      const ver = document.getElementById('ver');
+      if (this.self && this.self.newer) ver.innerHTML = `<button class="btn sm pri" data-selfupd="1" title="Обновить Zapret Manager">↑ ${esc(this.self.latest)}</button>`;
+      else ver.textContent = 'v' + this.dash.sys.version + (this.dash.sys.dev ? ' · dev' : '');
+      if (!this.selfChecked) { this.selfChecked = true; this.api('self_check').then(r => { this.self = r; this.nav(); if (r.newer) { this.pollDash(); if (this.cur === 'dash') this.refresh(); } }).catch(() => {}); }
       if (this.theme !== this.dash.theme && !this.themeSet) this.applyTheme(this.dash.theme);
       const p = this.pages[this.cur];
       if (p && p.live) p.live(this.dash);
@@ -186,6 +189,8 @@ const ZM = {
       const b = e.target.closest('[data-act]');
       if (b && !b.disabled) { e.preventDefault(); const p = this.pages[this.cur]; const fn = p && p.act && p.act[b.dataset.act]; if (fn) fn.call(p, b, e); }
       if (e.target.closest('[data-fixconf]')) { e.preventDefault(); fixConflicts(); return; }
+      if (e.target.closest('[data-selfupd]')) { e.preventDefault(); updateSelf(); return; }
+      const u = e.target.closest('[data-upd]'); if (u) { e.preventDefault(); updateComponent(u.dataset.upd); return; }
       const s = e.target.closest('.secret'); if (s) s.classList.toggle('open');
       const c = e.target.closest('[data-copy]'); if (c) copy(c.dataset.copy);
     });
@@ -291,4 +296,40 @@ async function beforeZapret() {
   if (!ok) return true;
   const r = await ZM.call('conflicts_fix', {}, { reload: false });
   return !!r;
+}
+
+// ---------- updates ----------
+function selfBanner() {
+  const s = ZM.self;
+  if (!s || !s.newer) return '';
+  return `<div class="notice info" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span>Доступна новая версия Zapret Manager: <b>${esc(s.latest)}</b> (у вас ${esc(s.current)}).</span>
+    <button class="btn pri" data-selfupd="1">Обновить</button><a href="${esc(s.url)}" target="_blank" class="hint">что нового</a></div>`;
+}
+async function updateSelf() {
+  if (!await ZM.confirm('Обновить Zapret Manager?', 'Программа скачает новую версию с GitHub, заменит себя и перезапустит службу. Панель переподключится сама; на несколько секунд обход блокировок прервётся.', 'Обновить')) return;
+  await ZM.call('self_update', {}, { title: 'Обновление Zapret Manager', reload: false });
+  ZM.toast('Служба перезапускается — подождите…');
+  const t0 = Date.now();
+  await new Promise(r => setTimeout(r, 4000));
+  for (;;) {
+    try { const r = await fetch('/api/status', { method: 'POST', headers: { 'X-ZM': '1' }, body: '{}' }); if (r.ok) break; } catch (e) {}
+    if (Date.now() - t0 > 90000) { ZM.toast('Служба не вернулась за 90 секунд — откройте панель ярлыком', 'err'); return; }
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  location.reload();
+}
+const UPD_ACTIONS = {
+  zapret: ['zapret_action', { action: 'install' }, 'Обновление Zapret'],
+  zapret2: ['z2_action', { action: 'install' }, 'Обновление Zapret2'],
+  mihomo: ['rt_action', { action: 'install' }, 'Обновление Mihomo'],
+  byedpi: ['bt_action', { action: 'install' }, 'Обновление ByeDPI'],
+  'tg-go': ['tg_install', { id: 'go' }, 'Обновление TG WS Proxy'],
+  'tg-rs': ['tg_install', { id: 'rs' }, 'Обновление TG WS Proxy'],
+};
+async function updateComponent(id) {
+  if (id === 'self') return updateSelf();
+  const a = UPD_ACTIONS[id]; if (!a) return;
+  await ZM.call(a[0], a[1], { title: a[2] });
+  ZM.versCache = null;
 }

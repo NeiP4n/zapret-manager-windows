@@ -79,5 +79,5 @@ internal/cli/         console menu (`menu`) — an API client of the running ser
 
 - Not yet verified on real Windows: WinDivert run, service install, DoH adapter switching, AmneziaWG CLI, PAC pickup.
 - Original (non-game) ULTRAKILL-style art for empty slots (rank badges, background) is still to be drawn.
-- Manager self-update (needs a releases repo), tray icon, exe icon/manifest (.syso via mingw windres).
+- Self-update: internal/web/update.go (SelfRepo releases, asset ZapretManager.exe, tag vX.Y.Z = app.Version; build with -X ...app.Version). Tray icon, exe icon/manifest (.syso via mingw windres).
 - Strategy-changing API should refuse while `strategy_test` job runs.
