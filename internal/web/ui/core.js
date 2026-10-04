@@ -185,6 +185,7 @@ const ZM = {
     document.addEventListener('click', e => {
       const b = e.target.closest('[data-act]');
       if (b && !b.disabled) { e.preventDefault(); const p = this.pages[this.cur]; const fn = p && p.act && p.act[b.dataset.act]; if (fn) fn.call(p, b, e); }
+      if (e.target.closest('[data-fixconf]')) { e.preventDefault(); fixConflicts(); return; }
       const s = e.target.closest('.secret'); if (s) s.classList.toggle('open');
       const c = e.target.closest('[data-copy]'); if (c) copy(c.dataset.copy);
     });
@@ -265,4 +266,29 @@ async function logViewer(name) {
   const r = await ZM.api('proc_log', { name });
   ZM.modal(`<h3>Журнал: ${esc(name)}</h3><pre class="log">${(r.lines || []).map(fmtLog).join('\n') || 'пусто'}</pre>
     <div class="zm-actions"><button class="btn pri" onclick="ZM.closeModal()">Закрыть</button></div>`);
+}
+
+// ---------- foreign zapret / GoodbyeDPI ----------
+function conflictsBlock(list) {
+  if (!list || !list.length) return '';
+  return `<div class="notice bad"><b>Найден другой zapret — он перехватывает тот же трафик через WinDivert, и обход работать не будет.</b>
+    <ul style="margin:6px 0 8px 18px;padding:0">${list.map(c => `<li>${esc(c.text)}${c.pids ? ` <span class="muted">(PID ${c.pids.join(', ')})</span>` : ''}</li>`).join('')}</ul>
+    <button class="btn pri" data-fixconf="1">Отключить сторонний zapret</button>
+    <span class="hint">Службы переводятся в ручной запуск (не удаляются), процессы останавливаются.</span></div>`;
+}
+async function fixConflicts() {
+  if (!await ZM.confirm('Отключить сторонний zapret?', 'Службы другого zapret / GoodbyeDPI будут остановлены и выключены из автозапуска, их процессы завершены. Вернуть можно в «Службах» Windows.', 'Отключить')) return false;
+  const r = await ZM.call('conflicts_fix', {}, { reload: true });
+  if (r) { ZM.toast((r.done || []).join('; ') || 'Готово', 'ok'); ZM.pollDash(); return true; }
+  return false;
+}
+// beforeZapret: if a foreign zapret is running, offer to disable it before starting ours.
+async function beforeZapret() {
+  let list = [];
+  try { list = (await ZM.api('conflicts')).items || []; } catch (e) {}
+  if (!list.length) return true;
+  const ok = await ZM.confirm('Обнаружен другой zapret', `${list.map(c => esc(c.text)).join('<br>')}<br><br>Пока он работает, наш Zapret не сможет обходить блокировки. Отключить его?`, 'Отключить и продолжить');
+  if (!ok) return true;
+  const r = await ZM.call('conflicts_fix', {}, { reload: false });
+  return !!r;
 }

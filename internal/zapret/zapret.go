@@ -234,7 +234,7 @@ type Status struct {
 	IPv6      bool          `json:"ipv6"`
 	TsWarning bool          `json:"ts_warning"`
 	Proc      osx.ProcState `json:"proc"`
-	Conflicts []string      `json:"conflicts"`
+	Conflicts []Conflict    `json:"conflicts"`
 	Zapret2   bool          `json:"zapret2_installed"`
 }
 
@@ -258,27 +258,72 @@ func GetStatus() Status {
 	return st
 }
 
-// Conflicts lists other DPI tools that grab WinDivert and break winws (Windows analogue of the
+// Conflict is another DPI tool that grabs WinDivert and breaks winws (Windows analogue of the
 // TUI warning about byedpi / youtubeUnblock on the router).
-func Conflicts() []string {
-	var out []string
+type Conflict struct {
+	Kind string `json:"kind"` // process | service
+	Name string `json:"name"`
+	PIDs []int  `json:"pids,omitempty"`
+	Text string `json:"text"`
+}
+
+// foreignServices are services other zapret builds install (Flowseal service.bat, GoodbyeDPI).
+var foreignServices = []string{"zapret", "zapret2", "winws", "GoodbyeDPI", "goodbyedpi"}
+
+func Conflicts() []Conflict {
+	var out []Conflict
 	ps := osx.Processes()
-	ours := osx.ProcStatus(ProcName).PID
-	for _, pid := range ps["winws.exe"] {
-		if pid != ours {
-			out = append(out, "запущен сторонний winws.exe (Flowseal / zapret-win-bundle) — остановите его")
-			break
+	ours := map[int]bool{osx.ProcStatus(ProcName).PID: true, osx.ProcStatus(Proc2Name).PID: true}
+	for _, exe := range []string{"winws.exe", "winws2.exe", "goodbyedpi.exe"} {
+		var pids []int
+		for _, pid := range ps[exe] {
+			if !ours[pid] {
+				pids = append(pids, pid)
+			}
+		}
+		if len(pids) > 0 {
+			t := "запущен сторонний " + exe + " (другая сборка zapret — Flowseal, zapret-win-bundle и т.п.)"
+			if exe == "goodbyedpi.exe" {
+				t = "запущен GoodbyeDPI — он конфликтует с winws"
+			}
+			out = append(out, Conflict{Kind: "process", Name: exe, PIDs: pids, Text: t})
 		}
 	}
-	if len(ps["goodbyedpi.exe"]) > 0 {
-		out = append(out, "запущен GoodbyeDPI — он конфликтует с winws")
-	}
-	for _, svc := range []string{"zapret", "GoodbyeDPI"} {
-		if osx.ServiceState(svc) == "running" {
-			out = append(out, "работает служба «"+svc+"» — удалите её (service.bat → Remove Services)")
+	for _, svc := range foreignServices {
+		if st := osx.ServiceState(svc); st == "running" {
+			out = append(out, Conflict{Kind: "service", Name: svc, Text: "работает служба «" + svc + "» от другого zapret / GoodbyeDPI"})
 		}
 	}
 	return out
+}
+
+// FixConflicts stops foreign zapret/GoodbyeDPI: services are stopped and set to manual start
+// (disabled, not deleted — the user can turn them back on), processes are killed.
+func FixConflicts() ([]string, error) {
+	var done []string
+	for _, c := range Conflicts() {
+		switch c.Kind {
+		case "service":
+			if err := osx.ServiceDisable(c.Name); err != nil {
+				return done, fmt.Errorf("не удалось остановить службу %s: %v", c.Name, err)
+			}
+			done = append(done, "служба «"+c.Name+"» остановлена и выключена из автозапуска")
+		case "process":
+			for _, pid := range c.PIDs {
+				osx.KillPID(pid)
+			}
+			done = append(done, c.Name+" остановлен")
+		}
+	}
+	time.Sleep(time.Second)
+	osx.UnloadWinDivert()
+	if left := Conflicts(); len(left) > 0 {
+		return done, fmt.Errorf("остались: %s", left[0].Text)
+	}
+	if app.S().ZapretEnabled {
+		_ = Restart()
+	}
+	return done, nil
 }
 
 func countLines(p string) int {

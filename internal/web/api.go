@@ -71,6 +71,11 @@ func register() {
 		}
 		return nil, fmt.Errorf("неизвестное действие")
 	})
+	reg("conflicts", func(ctx context.Context, a Args) (any, error) { return M{"items": zapret.Conflicts()}, nil })
+	reg("conflicts_fix", func(ctx context.Context, a Args) (any, error) {
+		done, err := zapret.FixConflicts()
+		return M{"done": done}, err
+	})
 	reg("strategy_list", func(ctx context.Context, a Args) (any, error) {
 		switch a.S("kind") {
 		case "v":

@@ -262,3 +262,35 @@ func UnloadWinDivert() {
 		_, _ = Run(nil, 15*time.Second, "sc.exe", "stop", n)
 	}
 }
+
+// ServiceDisable stops a foreign service and switches it to manual start (reversible).
+func ServiceDisable(name string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	if st, err := s.Query(); err == nil && st.State != windows.SERVICE_STOPPED {
+		_, _ = s.Control(windows.SERVICE_CONTROL_STOP)
+		for i := 0; i < 40; i++ {
+			time.Sleep(250 * time.Millisecond)
+			if st, err = s.Query(); err != nil || st.State == windows.SERVICE_STOPPED {
+				break
+			}
+		}
+	}
+	cfg, err := s.Config()
+	if err != nil {
+		return err
+	}
+	cfg.StartType = mgr.StartManual
+	return s.UpdateConfig(cfg)
+}
+
+// KillPID terminates a foreign process tree.
+func KillPID(pid int) { killTree(pid) }

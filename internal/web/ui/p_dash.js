@@ -13,7 +13,7 @@ ZM.page('dash', {
     const lvl = p => p > 85 ? 'hi' : p > 60 ? 'mid' : '';
     let warn = '';
     if (s.dev) warn += notice('info', 'Режим разработки: системные действия Windows имитируются.');
-    for (const c of z.conflicts || []) warn += notice('bad', '⚠ ' + esc(c));
+    warn += conflictsBlock(z.conflicts);
     if (z.installed && !z.ipv6 && false) warn += '';
     if (!d.internet) warn += notice('warn', 'Нет связи с интернетом (google.com:443 не отвечает).');
 
@@ -63,11 +63,12 @@ ZM.page('dash', {
     ${card('Обновления', `<div id="vers">${ZM.versCache ? versTable(ZM.versCache) : '<p class="hint">Сравнить установленные версии с последними релизами на GitHub.</p>'}</div>`, btn('vers', 'Проверить', 'sm'))}`;
   },
   act: {
-    zstart() { ZM.call('zapret_action', { action: 'start' }, { ok: 'Zapret запущен' }); },
+    async zstart() { if (await beforeZapret()) ZM.call('zapret_action', { action: 'start' }, { ok: 'Zapret запущен' }); },
     zstop() { ZM.call('zapret_action', { action: 'stop' }, { ok: 'Zapret остановлен' }); },
     zrestart() { ZM.call('zapret_action', { action: 'restart' }, { ok: 'Zapret перезапущен' }); },
-    zinstall() { ZM.call('zapret_action', { action: 'install' }, { title: 'Установка Zapret' }); },
+    async zinstall() { if (await beforeZapret()) ZM.call('zapret_action', { action: 'install' }, { title: 'Установка Zapret' }); },
     async zfull() {
+      if (!await beforeZapret()) return;
       if (await ZM.confirm('Установить и настроить Zapret?', 'Поставим Zapret, применим стратегию v7, добавим популярные блоки в hosts и игровую стратегию Gv1 — как пункт «f» в меню на роутере.'))
         ZM.call('zapret_action', { action: 'full' }, { title: 'Установка и настройка Zapret' });
     },

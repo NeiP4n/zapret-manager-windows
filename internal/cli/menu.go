@@ -185,10 +185,13 @@ func printInfo(r obj) {
 	d := r["doh"].(map[string]any)
 	fmt.Printf("%sDNS over HTTPS:%s %s\n", yellow, nc, onoff(boolv(d, "installed"), str(d, "current"), "выключен"))
 	fmt.Printf("%shosts:%s         включено блоков: %s\n", yellow, nc, str(r, "hosts_blocks"))
-	if cs, ok := z["conflicts"].([]any); ok {
+	if cs, ok := z["conflicts"].([]any); ok && len(cs) > 0 {
 		for _, c := range cs {
-			fmt.Println(red + "!! " + fmt.Sprint(c) + nc)
+			if m, ok := c.(map[string]any); ok {
+				fmt.Println(red + "!! " + fmt.Sprint(m["text"]) + nc)
+			}
 		}
+		fmt.Println(yellow + "   Найден другой zapret — он мешает работе. Пункт «k» отключит его." + nc)
 	}
 	fmt.Printf("%sИнтернет:%s      %s\n", yellow, nc, onoff(boolv(r, "internet"), "есть", "нет связи"))
 }
@@ -238,6 +241,10 @@ func Menu() error {
 		case "f", "а":
 			if confirm("Удалить Zapret, поставить заново, применить v7, hosts и Gv1?") {
 				do("zapret_action", obj{"action": "full"})
+			}
+		case "k", "л":
+			if confirm("Отключить сторонний zapret / GoodbyeDPI (службы — в ручной запуск, процессы — остановить)?") {
+				do("conflicts_fix", nil)
 			}
 		case "m", "ь":
 			sysMenu()

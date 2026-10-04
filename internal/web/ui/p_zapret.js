@@ -18,7 +18,7 @@ ZM.page('zapret', {
   async render() {
     const z = this.z = await ZM.api('zapret_status');
     let head = '';
-    for (const c of z.conflicts || []) head += notice('bad', '⚠ ' + esc(c));
+    head += conflictsBlock(z.conflicts);
     if (!z.installed) {
       return head + card('Zapret не установлен', `
         <p>Zapret — это <b>winws.exe</b> из проекта bol-van/zapret с драйвером WinDivert. Он меняет первые пакеты соединений так, что DPI провайдера не узнаёт заблокированный сайт. Устанавливается последняя версия с GitHub.</p>
@@ -156,12 +156,12 @@ ZM.page('zapret', {
 
   act: {
     tab(b) { this.tab = b.dataset.tab; ZM.refresh(); },
-    install() { ZM.call('zapret_action', { action: 'install' }, { title: 'Установка Zapret' }); },
-    async full() { if (await ZM.confirm('Переустановить и настроить?', 'Zapret будет удалён и поставлен заново, затем применятся v7, блоки hosts и игровая стратегия Gv1.')) ZM.call('zapret_action', { action: 'full' }, { title: 'Установка и настройка Zapret' }); },
+    async install() { if (await beforeZapret()) ZM.call('zapret_action', { action: 'install' }, { title: 'Установка Zapret' }); },
+    async full() { if (!await beforeZapret()) return; if (await ZM.confirm('Переустановить и настроить?', 'Zapret будет удалён и поставлен заново, затем применятся v7, блоки hosts и игровая стратегия Gv1.')) ZM.call('zapret_action', { action: 'full' }, { title: 'Установка и настройка Zapret' }); },
     async remove() { if (await ZM.confirm('Удалить Zapret?', 'Будут удалены winws, стратегии, списки и результаты тестов.', 'Удалить', true)) ZM.call('zapret_action', { action: 'remove' }, { title: 'Удаление Zapret' }); },
-    start() { ZM.call('zapret_action', { action: 'start' }, { ok: 'Zapret запущен' }); },
+    async start() { if (await beforeZapret()) ZM.call('zapret_action', { action: 'start' }, { ok: 'Zapret запущен' }); },
     stop() { ZM.call('zapret_action', { action: 'stop' }, { ok: 'Zapret остановлен' }); },
-    restart() { ZM.call('zapret_action', { action: 'restart' }, { ok: 'Перезапущен' }); },
+    async restart() { if (await beforeZapret()) ZM.call('zapret_action', { action: 'restart' }, { ok: 'Перезапущен' }); },
     log() { logViewer('winws'); },
     setv(b) { ZM.call('strategy_set', { kind: 'v', id: b.dataset.id }, { ok: 'Стратегия v' + b.dataset.id + ' применена' }); },
     setfs() { ZM.call('strategy_set', { kind: 'flowseal', id: val('fsSel') }, { ok: 'Применена ' + val('fsSel') }); },

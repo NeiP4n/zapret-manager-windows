@@ -58,3 +58,6 @@ func ServiceStop() error              { return nil }
 func ServiceRemove() error            { devSvc = false; return nil }
 func ServiceState(name string) string { return "" }
 func UnloadWinDivert()                {}
+
+func ServiceDisable(name string) error { return nil }
+func KillPID(pid int)                  {}
