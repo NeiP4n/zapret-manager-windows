@@ -1,0 +1,7 @@
+/devroot/
+/dist/
+*.exe
+*.syso
+*.zip
+*.part
+*.zmtmp
