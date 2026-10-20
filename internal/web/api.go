@@ -11,6 +11,7 @@ import (
 	"github.com/zapretmanager/zmwin/internal/awg"
 	"github.com/zapretmanager/zmwin/internal/byetube"
 	"github.com/zapretmanager/zmwin/internal/doh"
+	"github.com/zapretmanager/zmwin/internal/evade"
 	"github.com/zapretmanager/zmwin/internal/hosts"
 	"github.com/zapretmanager/zmwin/internal/osx"
 	"github.com/zapretmanager/zmwin/internal/routing"
@@ -51,6 +52,66 @@ func register() {
 		return M{"lines": osx.TailLog(n, 300)}, nil
 	})
 	reg("ui_theme_set", func(ctx context.Context, a Args) (any, error) { sysinfo.SetTheme(a.S("theme")); return nil, nil })
+
+	// ---------- адаптивное ядро (docs/adaptive-core.md) ----------
+	// Диагностика: почему хост недоступен и что с этим делать, вместо перебора пресетов.
+	reg("evade_probe", func(ctx context.Context, a Args) (any, error) {
+		var hosts []string
+		if err := a.Into("hosts", &hosts); err != nil {
+			return nil, fmt.Errorf("нужен список хостов")
+		}
+		if len(hosts) == 0 {
+			return nil, fmt.Errorf("укажите хотя бы один хост")
+		}
+		if len(hosts) > 8 {
+			hosts = hosts[:8]
+		}
+		opt := evade.DefaultOptions()
+		opt.CheckWhitelist = a.B("whitelist")
+		verds := evade.Scan(ctx, hosts, opt, nil)
+		model := evade.DefaultModel()
+		seed := time.Now().UnixNano()
+		items := make([]M, 0, len(verds))
+		for _, v := range verds {
+			it := M{"host": v.Host, "class": v.Class, "plan": v.Plan, "fallback": v.Fallback,
+				"reason": v.Reason, "confidence": v.Confidence, "evidence": v.Evidence}
+			// Кандидат-стратегия: рандомизированный блок в формате strategy.txt.
+			var body []string
+			if v.Plan == evade.PlanDesync {
+				body = zapret.RandomBody(seed)
+				it["strategy"] = body
+			}
+			// Модель проверяет решение правил тем же вектором признаков (200 нс, без аллокаций).
+			if model != nil {
+				sp := evade.ParamsFromBody(body)
+				label, conf := model.Predict(evade.FeaturesOf(v.Evidence, sp))
+				it["model"] = M{"class": evade.ClassOf(label), "confidence": conf}
+				if evade.ClassOf(label) != v.Class {
+					it["model_note"] = "модель расходится с правилами — приоритет у правил"
+				}
+			}
+			items = append(items, it)
+		}
+		return M{"items": items}, nil
+	})
+	// Состояние встроенной модели: сколько данных, какая точность.
+	reg("evade_model", func(ctx context.Context, a Args) (any, error) {
+		m := evade.DefaultModel()
+		if m == nil {
+			return M{"loaded": false}, nil
+		}
+		return M{"loaded": true, "meta": m.Meta, "features": evade.NumFeatures,
+			"hidden": evade.HiddenUnits, "classes": evade.NumClasses}, nil
+	})
+	// Детерминированный пример рандомизированной стратегии (для панели и воспроизводимости).
+	reg("evade_strategy", func(ctx context.Context, a Args) (any, error) {
+		seed := int64(a.I("seed"))
+		body := zapret.RandomBody(seed)
+		if err := zapret.ValidateBody(body); err != nil {
+			return nil, err
+		}
+		return M{"seed": seed, "lines": body}, nil
+	})
 
 	// ---------- Zapret ----------
 	reg("zapret_status", func(ctx context.Context, a Args) (any, error) { return zapret.GetStatus(), nil })
