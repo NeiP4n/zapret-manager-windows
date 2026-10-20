@@ -5,6 +5,8 @@
 
 > Обход DPI-блокировок (YouTube, Discord, сайты, игры), шифрованный DNS, hosts, прокси для Telegram, AmneziaWG/WARP и выборочный VPN — всё в одной панели, как на роутере.
 
+> Разработка: [`AGENTS.md`](AGENTS.md) — маршрутизация «задача → модуль → файлы» для ИИ-агентов, [`docs/modules.md`](docs/modules.md) — карта модулей и контракты, [`docs/adaptive-core.md`](docs/adaptive-core.md) — диагностика блокировок и адаптивное ядро.
+
 | Claude | ULTRAKILL |
 |---|---|
 | ![Claude](docs/screenshots/claude-zapret.png) | ![ULTRAKILL](docs/screenshots/ultrakill-zapret.png) |
